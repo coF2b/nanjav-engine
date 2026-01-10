@@ -1,7 +1,6 @@
-﻿using nanjav.input;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace nanjav_engine.input
+namespace nanjav.input
 {
     public class Keyboard
     {

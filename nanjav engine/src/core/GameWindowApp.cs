@@ -5,7 +5,7 @@ using Silk.NET.Windowing;
 using System;
 using System.Numerics;
 using nanjav.core;
-using nanjav_engine.input;
+using nanjav.input;
 
 namespace nanjav.core
 {
@@ -16,7 +16,7 @@ namespace nanjav.core
         private Renderer _renderer = null!;
 
         public Keyboard Keyboard { get; private set; } = null!;
-        public nanjav.input.Mouse Mouse { get; private set; } = null!;
+        public Mouse Mouse { get; private set; } = null!;
         public Renderer Renderer => _renderer;
         public int Width => _window.Size.X;
         public int Height => _window.Size.Y;
@@ -108,7 +108,7 @@ namespace nanjav.core
             Keyboard.Update();
             Mouse.Update();
 
-            if (Keyboard.IsKeyPressed(nanjav.input.Keys.Escape))
+            if (Keyboard.IsKeyPressed(Keys.Escape))
                 Close();
 
             _renderer.Update(deltaTime);
