@@ -33,6 +33,8 @@ A component-based system. Components are added to GameObjects and give them func
 **Built-in Components:**
 - `SpriteRenderer` — renders a rectangle on screen
 - `Transform` — manages position and transformation
+- `BoxCollider2D` — 2D box collision detection
+- `Rigidbody2D` — physics, gravity, and velocity
 
 ### Transform (Transformation)
 
@@ -40,8 +42,45 @@ Responsible for position, rotation, and scale of an object.
 
 **Properties:**
 - `X, Y` — screen coordinates
-- `Rotation` — rotation angle
+- `Rotation` — rotation angle (in radians)
 - `ScaleX, ScaleY` — scale on each axis
+
+### BoxCollider2D
+
+Component for 2D box collision detection.
+
+**Properties:**
+- `Width` — collider width
+- `Height` — collider height
+- `Left, Right, Top, Bottom` — collision bounds (read-only)
+
+**Methods:**
+- `IsColliding(BoxCollider2D other)` — check if colliding with another collider
+
+### Rigidbody2D
+
+Component for physics simulation with gravity and velocity.
+
+**Properties:**
+- `Mass` — object mass (default: 1.0)
+- `GravityScale` — gravity multiplier (default: 9.7)
+- `Velocity` — current velocity as Vector2
+
+**Methods:**
+- `ApplyForce(Vector2 force)` — apply force to velocity
+- `Jump(float jumpForce)` — apply upward velocity for jumping
+
+### Camera2D
+
+Component for 2D camera control with zoom and position tracking.
+
+**Properties:**
+- `Position` — camera position in world space
+- `Zoom` — camera zoom level (default: 1.0)
+- `Offset` — screen center offset
+
+**Methods:**
+- `GetViewMatrix()` — returns the view matrix for rendering
 
 ---
 
@@ -69,6 +108,67 @@ nanjav/
 2. **Update** — logic updates (called every frame)
 3. **Render** — graphics rendering
 4. **Close** — resource cleanup
+
+---
+
+## Physics and Collision System
+
+The engine includes a built-in 2D physics system with gravity, velocity, and collision detection.
+
+### How Collisions Work
+
+- **BoxCollider2D** stores all active colliders in a static list `AllColliders`
+- **Rigidbody2D** automatically checks collisions with all colliders each frame
+- Vertical collisions (falling/jumping) are handled separately from horizontal collisions
+- Objects with a Rigidbody2D will fall due to gravity and respond to collisions
+
+### Setting Up Physics
+
+```csharp
+// Create a player with physics
+var player = GameObject.Create("Player");
+player.Transform.X = 100;
+player.Transform.Y = 100;
+
+// Add sprite for visuals
+var sprite = player.AddComponent<SpriteRenderer>();
+sprite.Width = 50;
+sprite.Height = 50;
+sprite.Color = new Vector3(0f, 1f, 0f);
+
+// Add collider for collision detection
+var collider = player.AddComponent<BoxCollider2D>();
+collider.Width = 50;
+collider.Height = 50;
+
+// Add rigidbody for physics
+var rigidbody = player.AddComponent<Rigidbody2D>();
+rigidbody.GravityScale = 9.7f;
+
+game.AddGameObject(player);
+```
+
+### Jumping and Movement with Physics
+
+```csharp
+game.OnUpdate += (dt) =>
+{
+    var player = // ... get player
+    var rigidbody = player.GetComponent<Rigidbody2D>();
+    
+    // Horizontal movement
+    if (game.Keyboard.IsKeyDown(Keys.A))
+        rigidbody.Velocity.X = -300f;
+    else if (game.Keyboard.IsKeyDown(Keys.D))
+        rigidbody.Velocity.X = 300f;
+    else
+        rigidbody.Velocity.X = 0;
+    
+    // Jumping
+    if (game.Keyboard.IsKeyPressed(Keys.Space))
+        rigidbody.Jump(-400f); // Negative = upward
+};
+```
 
 ---
 
@@ -313,6 +413,138 @@ obj.Transform.ScaleY = 1.5f;
 
 ---
 
+### BoxCollider2D
+
+Component for 2D box collision detection. All colliders are automatically tracked for collision checks.
+
+#### Properties
+```csharp
+float Width                  // Collider width
+float Height                 // Collider height
+float Left                   // Left edge position (read-only)
+float Right                  // Right edge position (read-only)
+float Top                    // Top edge position (read-only)
+float Bottom                 // Bottom edge position (read-only)
+List<BoxCollider2D> AllColliders  // Static list of all colliders
+```
+
+#### Methods
+```csharp
+bool IsColliding(BoxCollider2D other)  // Check collision with another collider
+```
+
+#### Example
+```csharp
+var obj = GameObject.Create("Ground");
+var collider = obj.AddComponent<BoxCollider2D>();
+collider.Width = 800;
+collider.Height = 50;
+obj.Transform.Y = 550;
+
+game.AddGameObject(obj);
+```
+
+---
+
+### Rigidbody2D
+
+Component for 2D physics simulation with gravity, velocity, and collision response.
+
+#### Properties
+```csharp
+float Mass           // Object mass (default: 1.0)
+float GravityScale   // Gravity multiplier (default: 9.7)
+Vector2 Velocity     // Current velocity
+```
+
+#### Methods
+```csharp
+void ApplyForce(Vector2 force)     // Add force to velocity
+void Jump(float jumpForce)         // Apply upward velocity (use negative values)
+void Update(double deltaTime)      // Update physics (called automatically)
+```
+
+#### Behavior
+- Automatically applies gravity each frame
+- Checks collisions with all BoxCollider2D objects
+- Prevents falling through solid objects
+- Stops horizontal movement when hitting walls
+- Handles jumping on platforms
+
+#### Example
+```csharp
+var player = GameObject.Create("Player");
+var collider = player.AddComponent<BoxCollider2D>();
+collider.Width = 50;
+collider.Height = 50;
+
+var rigidbody = player.AddComponent<Rigidbody2D>();
+rigidbody.Mass = 1.0f;
+rigidbody.GravityScale = 9.7f;
+
+// In update loop
+if (game.Keyboard.IsKeyPressed(Keys.Space))
+    rigidbody.Jump(-400f);
+```
+
+---
+
+### Camera2D
+
+Component for 2D camera control with position, zoom, and view matrix.
+
+#### Constructor
+```csharp
+Camera2D(float screenWidth, float screenHeight)
+```
+
+#### Properties
+```csharp
+Vector2 Position  // Camera position in world space
+float Zoom        // Zoom level (default: 1.0)
+Vector2 Offset    // Screen center offset
+```
+
+#### Methods
+```csharp
+Matrix4x4 GetViewMatrix()  // Get the view matrix for rendering
+```
+
+#### Example
+```csharp
+var camera = new Camera2D(1280, 720);
+camera.Position = new Vector2(640, 360);
+camera.Zoom = 1.5f;
+game.SetCamera(camera);
+```
+
+---
+
+### Transform
+
+Manages object position and transformation.
+
+#### Properties
+```csharp
+float X           // Position on X axis
+float Y           // Position on Y axis
+float Rotation    // Rotation angle (in radians)
+float ScaleX      // Scale on X axis
+float ScaleY      // Scale on Y axis
+Transform? Parent // Parent transformation
+```
+
+#### Example
+```csharp
+var obj = GameObject.Create("Box");
+obj.Transform.X = 250;
+obj.Transform.Y = 150;
+obj.Transform.ScaleX = 2f;
+obj.Transform.ScaleY = 1.5f;
+```
+
+---
+
 ## Usage Examples
 
 ### Example 1: Simple Moving Object
@@ -405,6 +637,82 @@ game.OnUpdate += (dt) =>
         game.AddGameObject(obj);
     }
 };
+```
+
+### Example 4: 2D Platformer with Physics
+
+```csharp
+class PlatformerGame
+{
+    private GameWindowApp _game;
+    private GameObject _player;
+    private GameObject _ground;
+
+    public PlatformerGame()
+    {
+        _game = new GameWindowApp("Platformer", 1280, 720);
+        _game.OnLoad += OnLoad;
+        _game.OnUpdate += OnUpdate;
+    }
+
+    void OnLoad()
+    {
+        // Create ground platform
+        _ground = GameObject.Create("Ground");
+        _ground.Transform.X = 0;
+        _ground.Transform.Y = 600;
+
+        var groundSprite = _ground.AddComponent<SpriteRenderer>();
+        groundSprite.Width = 1280;
+        groundSprite.Height = 120;
+        groundSprite.Color = new Vector3(0.5f, 0.5f, 0.5f);
+
+        var groundCollider = _ground.AddComponent<BoxCollider2D>();
+        groundCollider.Width = 1280;
+        groundCollider.Height = 120;
+
+        _game.AddGameObject(_ground);
+
+        // Create player
+        _player = GameObject.Create("Player");
+        _player.Transform.X = 100;
+        _player.Transform.Y = 500;
+
+        var playerSprite = _player.AddComponent<SpriteRenderer>();
+        playerSprite.Width = 50;
+        playerSprite.Height = 50;
+        playerSprite.Color = new Vector3(0f, 0f, 1f);
+
+        var playerCollider = _player.AddComponent<BoxCollider2D>();
+        playerCollider.Width = 50;
+        playerCollider.Height = 50;
+
+        var playerRigidbody = _player.AddComponent<Rigidbody2D>();
+        playerRigidbody.GravityScale = 9.7f;
+
+        _game.AddGameObject(_player);
+    }
+
+    void OnUpdate(double deltaTime)
+    {
+        var rigidbody = _player.GetComponent<Rigidbody2D>();
+        if (rigidbody == null) return;
+
+        // Horizontal movement
+        if (_game.Keyboard.IsKeyDown(Keys.A))
+            rigidbody.Velocity.X = -300f;
+        else if (_game.Keyboard.IsKeyDown(Keys.D))
+            rigidbody.Velocity.X = 300f;
+        else
+            rigidbody.Velocity.X = 0f;
+
+        // Jump
+        if (_game.Keyboard.IsKeyPressed(Keys.Space))
+            rigidbody.Jump(-400f);
+    }
+
+    public void Run() => _game.Run();
+}
 ```
 
 ---

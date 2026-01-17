@@ -110,6 +110,14 @@ namespace nanjav.core
         public float Width { get; set; } = 100f;
         public float Height { get; set; } = 100f;
         public System.Numerics.Vector3 Color { get; set; } = new System.Numerics.Vector3(1f, 1f, 1f);
+
+        public void Render(Camera2D camera)
+        {
+            if (Transform == null) return;
+
+            float screenX = (Transform.X - camera.Position.X) + camera.Offset.X;
+            float screenY = (Transform.Y - camera.Position.Y) + camera.Offset.Y;
+        }
     }
 
     public class Transform

@@ -173,5 +173,11 @@ namespace nanjav.core
         {
             _renderer.AddRootObject(obj);
         }
+
+        // Додаємо метод для встановлення камери
+        public void SetCamera(Camera2D camera)
+        {
+            _renderer.Camera = camera;
+        }
     }
 }

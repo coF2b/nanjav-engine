@@ -6,6 +6,6 @@ namespace nanjav_engine.src
 {
     public class Data
     {
-        public string version = "0.1.1";
+        public string version = "0.1.2";
     }
 }

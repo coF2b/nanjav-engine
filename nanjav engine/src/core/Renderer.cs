@@ -20,6 +20,8 @@ namespace nanjav.core
 
         private List<GameObject> _rootObjects = new List<GameObject>();
 
+        public Camera2D? Camera { get; set; }
+
         public void Load(GL gl, int width, int height)
         {
             _gl = gl ?? throw new ArgumentNullException(nameof(gl));
@@ -140,6 +142,9 @@ namespace nanjav.core
         {
             var vertexList = new List<float>();
 
+            float cameraX = Camera?.Position.X ?? 0f;
+            float cameraY = Camera?.Position.Y ?? 0f;
+
             void CollectFrom(GameObject obj)
             {
                 if (!obj.IsActive) return;
@@ -147,8 +152,8 @@ namespace nanjav.core
                 var sprite = obj.GetComponent<SpriteRenderer>();
                 if (sprite != null)
                 {
-                    float x = obj.Transform.X;
-                    float y = obj.Transform.Y;
+                    float x = obj.Transform.X - cameraX;
+                    float y = obj.Transform.Y - cameraY;
                     float w = sprite.Width * obj.Transform.ScaleX;
                     float h = sprite.Height * obj.Transform.ScaleY;
                     float r = sprite.Color.X;
