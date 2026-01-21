@@ -2,7 +2,7 @@
 
 public class Data
 {
-    public string Version = "0.1.3";
+    public string Version = "0.1.3.1";
     public string OSver = Environment.OSVersion.ToString();
     public string TimeNow = DateTime.Now.ToString();
 

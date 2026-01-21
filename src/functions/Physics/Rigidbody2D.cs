@@ -7,7 +7,7 @@ namespace nanjav.physics2D
     public class Rigidbody2D : Component
     {
         public float Mass = 1.0f;
-        public float GravityScale = 9.7f;
+        public float GravityScale = 9.81f;
         public Vector2 Velocity = Vector2.Zero;
 
         public void ApplyForce(Vector2 force)
@@ -35,24 +35,30 @@ namespace nanjav.physics2D
             {
                 bool grounded = false;
 
-                foreach (var other in BoxCollider2D.AllColliders)
+                float minCollisionDistance = float.MaxValue;
+                BoxCollider2D? collidingWith = null;
+
+                foreach (var other in BoxCollider2D.AllColliders.ToList())
                 {
-                    if (other == myCollider) continue;
+                    if (other == null || other == myCollider) continue;
+                    if (!other.GameObject?.IsActive ?? false) continue;
 
-                    if (Velocity.Y > 0 && CheckCollision(Transform.X, nextY, myCollider, other))
+                    if (CheckCollision(Transform.X, nextY, myCollider, other))
                     {
-                        Transform.Y = other.Top - myCollider.Height;
-                        Velocity.Y = 0;
-                        grounded = true;
-                        break;
+                        float distance = Math.Abs(other.Top - (nextY + myCollider.Height));
+                        if (distance < minCollisionDistance)
+                        {
+                            minCollisionDistance = distance;
+                            collidingWith = other;
+                        }
                     }
+                }
 
-                    if (Velocity.Y < 0 && CheckCollision(Transform.X, nextY, myCollider, other))
-                    {
-                        Transform.Y = other.Bottom;
-                        Velocity.Y = 0;
-                        break;
-                    }
+                if (collidingWith != null)
+                {
+                    Transform.Y = collidingWith.Top - myCollider.Height;
+                    Velocity.Y = 0;
+                    grounded = true;
                 }
 
                 if (!grounded && Velocity.Y != 0)

@@ -15,6 +15,11 @@ namespace nanjav.core
             AllColliders.Add(this);
         }
 
+        public void Destroy()
+        {
+            AllColliders.Remove(this);
+        }
+
         public float Left => Transform?.X ?? 0;
         public float Right => (Transform?.X ?? 0) + Width;
         public float Top => Transform?.Y ?? 0;
