@@ -1,6 +1,6 @@
 # nanjav Game Engine
 
-## Documentation for version 0.1.2
+## Documentation for version 0.1.3
 
 A lightweight and simple 2D game engine in C#, built on Silk.NET for rapid development of 2D games with input handling and OpenGL rendering.
 
@@ -596,6 +596,90 @@ class Game
 }
 ```
 
+### Example 5: Audio System with 3D Sound
+
+```csharp
+class AudioGameExample
+{
+    private GameWindowApp _game;
+    private AudioSystem _audioSystem;
+    private Camera2D _camera;
+
+    public AudioGameExample()
+    {
+        _game = new GameWindowApp("Audio Demo", 1280, 720);
+        _audioSystem = new AudioSystem();
+        AudioSource.SetAudioSystem(_audioSystem);
+        
+        _game.OnLoad += OnLoad;
+        _game.OnUpdate += OnUpdate;
+        _game.OnClose += OnClose;
+    }
+
+    void OnLoad()
+    {
+        // Load audio files
+        _audioSystem.LoadSound("background", "sounds/music.wav");
+        _audioSystem.LoadSound("jump", "sounds/jump.wav");
+        _audioSystem.LoadSound("coin", "sounds/coin.wav");
+
+        // Create camera
+        _camera = new Camera2D(1280, 720);
+        _game.SetCamera(_camera);
+
+        // Create player with audio
+        var player = GameObject.Create("Player");
+        player.Transform.X = 640;
+        player.Transform.Y = 500;
+
+        var playerSprite = player.AddComponent<SpriteRenderer>();
+        playerSprite.Width = 50;
+        playerSprite.Height = 50;
+        playerSprite.Color = new Vector3(0f, 0f, 1f);
+
+        var playerAudio = player.AddComponent<AudioSource>();
+        playerAudio.SoundName = "background";
+        playerAudio.Volume = 0.5f;
+        playerAudio.PlayOnStart = true;
+
+        _game.AddGameObject(player);
+
+        // Create coins with 3D audio
+        for (int i = 0; i < 3; i++)
+        {
+            var coin = GameObject.Create($"Coin_{i}");
+            coin.Transform.X = 300 + i * 300;
+            coin.Transform.Y = 400;
+
+            var coinSprite = coin.AddComponent<SpriteRenderer>();
+            coinSprite.Width = 20;
+            coinSprite.Height = 20;
+            coinSprite.Color = new Vector3(1f, 1f, 0f);
+
+            var coinAudio = coin.AddComponent<AudioSource>();
+            coinAudio.SoundName = "coin";
+            coinAudio.Is3D = true;
+
+            _game.AddGameObject(coin);
+        }
+    }
+
+    void OnUpdate(double deltaTime)
+    {
+        _audioSystem.Update();
+        _camera.Position = new Vector2(640, 360);
+        _audioSystem.SetListenerPosition(new Vector3(640, 360, 0));
+    }
+
+    void OnClose()
+    {
+        _audioSystem?.Dispose();
+    }
+
+    public void Run() => _game.Run();
+}
+```
+
 ### Example 2: Parent-Child System
 
 ```csharp
@@ -717,6 +801,130 @@ class PlatformerGame
 
 ---
 
+---
+
+## Audio System
+
+The engine includes a complete audio system with 2D and 3D sound support using OpenAL.
+
+### AudioSystem
+
+Main class for managing audio playback and sound resources.
+
+#### Methods
+```csharp
+bool LoadSound(string name, string filePath)           // Load WAV audio file
+void PlaySound(string name, float volume = 1.0f, float pitch = 1.0f, bool loop = false)  // Play 2D sound
+void PlaySound3D(string name, Vector3 position, float volume = 1.0f, bool loop = false)  // Play 3D sound
+void SetListenerPosition(Vector3 position)             // Set listener position for 3D audio
+void SetListenerOrientation(Vector3 forward, Vector3 up)  // Set listener orientation
+void SetMasterVolume(float volume)                     // Set overall volume (0-1)
+void StopAllSounds()                                   // Stop all playing sounds
+void Update()                                          // Update audio system (called each frame)
+void Dispose()                                         // Clean up resources
+```
+
+#### Example
+```csharp
+// Initialize audio system
+var audioSystem = new AudioSystem();
+audioSystem.LoadSound("jump", "sounds/jump.wav");
+audioSystem.LoadSound("background", "sounds/music.wav");
+
+AudioSource.SetAudioSystem(audioSystem);
+
+// In game loop
+audioSystem.Update();
+```
+
+### AudioSource
+
+Component for playing audio on game objects with 2D or 3D sound support.
+
+#### Properties
+```csharp
+string? SoundName           // Name of sound to play
+float Volume                // Volume (0-1, default: 1.0)
+float Pitch                 // Pitch multiplier (default: 1.0)
+bool Loop                   // Should sound loop
+bool PlayOnStart            // Play automatically on initialization
+bool Is3D                   // Enable 3D audio
+float MinDistance           // Minimum distance for 3D audio (default: 1.0)
+float MaxDistance           // Maximum distance for 3D audio (default: 100.0)
+```
+
+#### Methods
+```csharp
+void Play()               // Start playing sound
+void Stop()               // Stop all sounds from this source
+bool IsPlaying()          // Check if sound is currently playing
+```
+
+#### Example
+```csharp
+// Add audio to a game object
+var player = GameObject.Create("Player");
+var audioSource = player.AddComponent<AudioSource>();
+audioSource.SoundName = "jump";
+audioSource.Volume = 0.8f;
+audioSource.PlayOnStart = false;
+
+// Play sound when jumping
+if (game.Keyboard.IsKeyPressed(Keys.Space))
+{
+    audioSource.Play();
+}
+```
+
+---
+
+## Utility Classes
+
+### ShaderUtils
+
+Helper class for shader compilation and management.
+
+#### Methods
+```csharp
+uint CompileShader(GL gl, ShaderType type, string source)  // Compile a shader
+uint CreateProgram(GL gl, string vertexSource, string fragmentSource, out uint vertexShader, out uint fragmentShader)  // Create shader program
+void DeleteProgram(GL gl, ref uint program, ref uint vertexShader, ref uint fragmentShader)  // Clean up shaders
+```
+
+### MathUtils
+
+Helper class for mathematical operations.
+
+#### Methods
+```csharp
+float[] CreateOrtho(float left, float right, float bottom, float top, float near, float far)  // Create orthographic projection matrix
+```
+
+### Data
+
+System information class for engine diagnostics.
+
+#### Properties
+```csharp
+string Version            // Engine version (e.g., "0.1.3")
+string OSver              // Operating system version
+string TimeNow            // Current date and time
+string GLVersion          // OpenGL version
+string GLVendor           // GPU vendor name
+string GLRenderer          // GPU renderer name
+string GLSLVersion        // GLSL version
+```
+
+#### Example
+```csharp
+var data = new Data(gl);
+Console.WriteLine($"nanjav v{data.Version}");
+Console.WriteLine($"GPU: {data.GLRenderer}");
+Console.WriteLine($"OpenGL: {data.GLVersion}");
+```
+
+---
+
 ## Tips and Recommendations
 
 1. **Optimization**: Deactivate objects with `SetActive(false)` instead of deleting for better performance
@@ -724,9 +932,16 @@ class PlatformerGame
 3. **DeltaTime**: Always use `deltaTime` for smooth movement independent of FPS
 4. **Custom Components**: Extend the `Component` base class for your own components
 5. **Colors**: RGB values should be from 0 to 1 (not 0 to 255)
+6. **Audio**: Always call `audioSystem.Update()` in your game loop
+7. **3D Audio**: Set listener position to match camera position for proper 3D sound effects
 
 ---
 
 ## License and Contact
 
 nanjav Game Engine — A simple and lightweight engine for learning and rapid prototyping of 2D games.
+<<<<<<< HEAD
+=======
+
+**Current Version**: 0.1.3
+>>>>>>> bba2527 (New version 0.1.3)

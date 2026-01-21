@@ -53,20 +53,7 @@ namespace nanjav.core
                 FragColor = vec4(vColor, 1.0);
             }";
 
-            _vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
-            _fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
-
-            _program = _gl.CreateProgram();
-            _gl.AttachShader(_program, _vertexShader);
-            _gl.AttachShader(_program, _fragmentShader);
-            _gl.LinkProgram(_program);
-
-            _gl.GetProgram(_program, ProgramPropertyARB.LinkStatus, out int linkStatus);
-            if (linkStatus == 0)
-            {
-                string log = _gl.GetProgramInfoLog(_program) ?? string.Empty;
-                throw new Exception($"Program link error: {log}");
-            }
+            _program = ShaderUtils.CreateProgram(_gl, vertexSource, fragmentSource, out _vertexShader, out _fragmentShader);
 
             _uProjectionLocation = _gl.GetUniformLocation(_program, "u_Projection");
 
@@ -197,25 +184,7 @@ namespace nanjav.core
         {
             if (_gl is null) return;
 
-            if (_program != 0)
-            {
-                if (_vertexShader != 0)
-                {
-                    _gl.DetachShader(_program, _vertexShader);
-                    _gl.DeleteShader(_vertexShader);
-                    _vertexShader = 0;
-                }
-
-                if (_fragmentShader != 0)
-                {
-                    _gl.DetachShader(_program, _fragmentShader);
-                    _gl.DeleteShader(_fragmentShader);
-                    _fragmentShader = 0;
-                }
-
-                _gl.DeleteProgram(_program);
-                _program = 0;
-            }
+            ShaderUtils.DeleteProgram(_gl, ref _program, ref _vertexShader, ref _fragmentShader);
 
             if (_vbo != 0)
             {
@@ -232,31 +201,11 @@ namespace nanjav.core
             _gl = null;
         }
 
-        private uint CompileShader(ShaderType type, string source)
-        {
-            if (_gl is null)
-                throw new InvalidOperationException("GL not initialized");
-
-            var shader = _gl.CreateShader(type);
-            _gl.ShaderSource(shader, source);
-            _gl.CompileShader(shader);
-
-            _gl.GetShader(shader, ShaderParameterName.CompileStatus, out int status);
-            if (status == 0)
-            {
-                string log = _gl.GetShaderInfoLog(shader) ?? string.Empty;
-                _gl.DeleteShader(shader);
-                throw new Exception($"Shader compilation error ({type}): {log}");
-            }
-
-            return shader;
-        }
-
         private void UpdateProjection()
         {
             if (_gl is null) return;
 
-            _projection = CreateOrtho(0f, _width, _height, 0f, -1f, 1f);
+            _projection = MathUtils.CreateOrtho(0f, _width, _height, 0f, -1f, 1f);
 
             if (_uProjectionLocation >= 0)
             {
@@ -264,37 +213,6 @@ namespace nanjav.core
                 _gl.UniformMatrix4(_uProjectionLocation, 1, false, ref _projection[0]);
                 _gl.UseProgram(0);
             }
-        }
-
-        private float[] CreateOrtho(float left, float right, float bottom, float top, float near, float far)
-        {
-            var m = new float[16];
-
-            float rl = 1.0f / (right - left);
-            float tb = 1.0f / (top - bottom);
-            float fn = 1.0f / (far - near);
-
-            m[0] = 2f * rl;
-            m[1] = 0f;
-            m[2] = 0f;
-            m[3] = 0f;
-
-            m[4] = 0f;
-            m[5] = 2f * tb;
-            m[6] = 0f;
-            m[7] = 0f;
-
-            m[8] = 0f;
-            m[9] = 0f;
-            m[10] = -2f * fn;
-            m[11] = 0f;
-
-            m[12] = -(right + left) * rl;
-            m[13] = -(top + bottom) * tb;
-            m[14] = -(far + near) * fn;
-            m[15] = 1f;
-
-            return m;
         }
     }
 }
