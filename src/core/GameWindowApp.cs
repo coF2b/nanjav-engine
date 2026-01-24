@@ -14,10 +14,12 @@ namespace nanjav.core
         private IWindow _window = null!;
         private GL? _gl;
         private Renderer _renderer = null!;
+        private Data _data = null!;
 
         public Keyboard Keyboard { get; private set; } = null!;
         public Mouse Mouse { get; private set; } = null!;
         public Renderer Renderer => _renderer;
+        public Data Data => _data;
         public int Width => _window.Size.X;
         public int Height => _window.Size.Y;
         public double Time => _window.Time;
@@ -52,6 +54,7 @@ namespace nanjav.core
         private void OnWindowLoad()
         {
             _gl = GL.GetApi(_window);
+            _data = new Data(_gl);
             SetupInput();
             _renderer.Load(_gl, Width, Height);
             CenterWindow();
@@ -105,6 +108,7 @@ namespace nanjav.core
 
         private void OnUpdateFrame(double deltaTime)
         {
+            _data?.UpdateFPS(deltaTime);
             Keyboard.Update();
             Mouse.Update();
 
