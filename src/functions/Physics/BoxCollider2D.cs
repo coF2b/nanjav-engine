@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using nanjav.core;
+﻿using nanjav.core;
 
-namespace nanjav.core
+namespace nanjav.physics2D
 {
     public class BoxCollider2D : Component
     {

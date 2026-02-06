@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace nanjav.core
+﻿namespace nanjav.core
 {
     public class GameObject
     {

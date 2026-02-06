@@ -2,9 +2,7 @@
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using System;
 using System.Numerics;
-using nanjav.core;
 using nanjav.input;
 
 namespace nanjav.core
@@ -151,6 +149,11 @@ namespace nanjav.core
                     (videoMode.Resolution.Value.Y - _window.Size.Y) / 2
                 );
             }
+        }
+
+        public void SetLightPosition(Vector3 position)
+        {
+            _renderer.SetLightPosition(position);
         }
 
         public void SetTitle(string title) => _window.Title = title;

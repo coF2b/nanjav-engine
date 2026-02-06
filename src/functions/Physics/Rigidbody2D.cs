@@ -1,6 +1,5 @@
 ﻿using nanjav.core;
 using System.Numerics;
-using System;
 
 namespace nanjav.physics2D
 {
@@ -9,6 +8,8 @@ namespace nanjav.physics2D
         public float Mass = 1.0f;
         public float GravityScale = 9.81f;
         public Vector2 Velocity = Vector2.Zero;
+        public float ReflectionForce = 0.5f;
+        float slopeThreshold = 0.7f;
 
         public void ApplyForce(Vector2 force)
         {
@@ -19,6 +20,7 @@ namespace nanjav.physics2D
         {
             Velocity.Y = jumpForce;
         }
+
 
         public override void Update(double deltaTime)
         {
@@ -89,6 +91,7 @@ namespace nanjav.physics2D
                 Transform.Y = nextY;
                 Transform.X = nextX;
             }
+            
         }
 
         private bool CheckCollision(float x, float y, BoxCollider2D me, BoxCollider2D other)

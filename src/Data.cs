@@ -2,7 +2,7 @@
 
 public class Data
 {
-    public string Version = "0.1.4 Alpha-1";
+    public string Version = "0.1.4 Alpha-2";
     public string OSver = Environment.OSVersion.ToString();
     public string TimeNow = DateTime.Now.ToString();
 
@@ -15,7 +15,7 @@ public class Data
 
     private double _frameTimeAccumulator = 0.0;
     private int _frameCount = 0;
-    private const double UpdateInterval = 0.1; // Update FPS every 0.1 seconds
+    private const double UpdateInterval = 0.1;
 
     public Data(GL gl)
     {

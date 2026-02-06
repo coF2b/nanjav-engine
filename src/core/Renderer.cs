@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using Silk.NET.OpenGL;
-using nanjav.core;
+﻿using Silk.NET.OpenGL;
+using System.Numerics;
 
 namespace nanjav.core
 {
@@ -17,6 +15,7 @@ namespace nanjav.core
         private float[] _projection = new float[16];
         private int _width;
         private int _height;
+        private Vector3 _lightPosition = new Vector3(500f, -500f, 100f);
 
         private List<GameObject> _rootObjects = new List<GameObject>();
 
@@ -33,24 +32,45 @@ namespace nanjav.core
             const string vertexSource = @"#version 330 core
             layout(location = 0) in vec2 aPos;
             layout(location = 1) in vec3 aColor;
+            layout(location = 2) in vec3 aNormal;
 
             out vec3 vColor;
+            out vec3 vNormal;
+            out vec3 vFragPos;
 
             uniform mat4 u_Projection;
+            uniform mat4 u_Model;
+            uniform mat4 u_View;
 
             void main()
             {
                 vColor = aColor;
+                vFragPos = vec3(u_Model * vec4(aPos, 0.0, 1.0));
                 gl_Position = u_Projection * vec4(aPos.xy, 0.0, 1.0);
+
+                vNormal = mat3(transpose(inverse(u_Model))) * aNormal;
             }";
 
             const string fragmentSource = @"#version 330 core
             in vec3 vColor;
+            in vec3 vNormal;
+            in vec3 vFragPos;
+
             out vec4 FragColor;
+
+            uniform vec3 u_LightPos;
+            uniform vec3 u_LightColor;
+            uniform vec3 u_viewPos;
 
             void main()
             {
-                FragColor = vec4(vColor, 1.0);
+                vec3 norm = normalize(vNormal);
+                vec3 lightDir = normalize(u_LightPos - vFragPos);
+
+                float diff = max(dot(norm, lightDir), 0.0);
+                vec3 diffuse = diff * u_LightColor;
+
+                FragColor = vec4(vColor * (0.5 + diffuse), 1.0);
             }";
 
             _program = ShaderUtils.CreateProgram(_gl, vertexSource, fragmentSource, out _vertexShader, out _fragmentShader);
@@ -65,12 +85,19 @@ namespace nanjav.core
 
             _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)0, (float[]?)null, BufferUsageARB.DynamicDraw);
 
-            uint stride = (uint)(5 * sizeof(float));
+            uint stride = (uint)(8 * sizeof(float)); // 2 позиція + 3 колір + 3 нормаль
+
+            // Position attribute
             _gl.EnableVertexAttribArray(0);
             _gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, stride, (nint)0);
 
+            // Color attribute
             _gl.EnableVertexAttribArray(1);
             _gl.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (nint)(2 * sizeof(float)));
+
+            // Normal attribute
+            _gl.EnableVertexAttribArray(2);
+            _gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, stride, (nint)(5 * sizeof(float)));
 
             _gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
             _gl.BindVertexArray(0);
@@ -80,6 +107,27 @@ namespace nanjav.core
 
             UpdateProjection();
             _gl.Viewport(0, 0, (uint)_width, (uint)_height);
+        }
+
+        public void SetLightPosition(Vector3 position)
+        {
+            if (_gl is null) return;
+
+            _lightPosition = position;
+            _gl.UseProgram(_program);
+
+            int lightPosUniform = _gl.GetUniformLocation(_program, "u_LightPos");
+            _gl.Uniform3(lightPosUniform, position.X, position.Y, position.Z);
+
+            int lightColorUniform = _gl.GetUniformLocation(_program, "u_LightColor");
+            _gl.Uniform3(lightColorUniform, 1.0f, 1.0f, 1.0f);
+
+            _gl.UseProgram(0);
+        }
+
+        public uint GetShaderProgramId()
+        {
+            return _program;
         }
 
         public void AddRootObject(GameObject obj)
@@ -115,7 +163,7 @@ namespace nanjav.core
 
             _gl.UseProgram(_program);
             _gl.BindVertexArray(_vao);
-            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)(vertices.Length / 5));
+            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)(vertices.Length / 8));
             _gl.BindVertexArray(0);
             _gl.UseProgram(0);
 
@@ -147,13 +195,15 @@ namespace nanjav.core
                     float g = sprite.Color.Y;
                     float b = sprite.Color.Z;
 
-                    vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
-                    vertexList.Add(x + w); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
-                    vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
+                    float nx = 0f, ny = 0f, nz = 1f;
 
-                    vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
-                    vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
-                    vertexList.Add(x); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b);
+                    vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                    vertexList.Add(x + w); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                    vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+
+                    vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                    vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                    vertexList.Add(x); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
                 }
 
                 foreach (var child in obj.GetChildren())
