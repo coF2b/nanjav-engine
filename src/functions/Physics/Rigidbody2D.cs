@@ -1,105 +1,103 @@
 ﻿using nanjav.core;
 using System.Numerics;
 
-namespace nanjav.physics2D
+namespace nanjav.core;
+
+public class Rigidbody2D : Component
 {
-    public class Rigidbody2D : Component
+    public float Mass = 1.0f;
+    public float GravityScale = 9.81f;
+    public Vector2 Velocity = Vector2.Zero;
+    public float ReflectionForce = 0.5f;
+    float slopeThreshold = 0.7f;
+
+    public void ApplyForce(Vector2 force)
     {
-        public float Mass = 1.0f;
-        public float GravityScale = 9.81f;
-        public Vector2 Velocity = Vector2.Zero;
-        public float ReflectionForce = 0.5f;
-        float slopeThreshold = 0.7f;
+        Velocity += force;
+    }
 
-        public void ApplyForce(Vector2 force)
+    public void Jump(float jumpForce)
+    {
+        Velocity.Y = jumpForce;
+    }
+
+    public override void Update(double deltaTime)
+    {
+        if (Transform == null) return;
+
+        Velocity.Y += GravityScale * (float)deltaTime;
+
+        float nextX = Transform.X + (Velocity.X * (float)deltaTime);
+        float nextY = Transform.Y + (Velocity.Y * (float)deltaTime);
+
+        var myCollider = GameObject?.GetComponent<BoxCollider2D>();
+
+        if (myCollider != null)
         {
-            Velocity += force;
-        }
+            bool grounded = false;
 
-        public void Jump(float jumpForce)
-        {
-            Velocity.Y = jumpForce;
-        }
+            float minCollisionDistance = float.MaxValue;
+            BoxCollider2D? collidingWith = null;
 
-
-        public override void Update(double deltaTime)
-        {
-            if (Transform == null) return;
-
-            Velocity.Y += GravityScale * (float)deltaTime;
-
-            float nextX = Transform.X + (Velocity.X * (float)deltaTime);
-            float nextY = Transform.Y + (Velocity.Y * (float)deltaTime);
-
-            var myCollider = GameObject?.GetComponent<BoxCollider2D>();
-
-            if (myCollider != null)
+            foreach (var other in BoxCollider2D.AllColliders.ToList())
             {
-                bool grounded = false;
+                if (other == null || other == myCollider) continue;
+                if (!other.GameObject?.IsActive ?? false) continue;
 
-                float minCollisionDistance = float.MaxValue;
-                BoxCollider2D? collidingWith = null;
-
-                foreach (var other in BoxCollider2D.AllColliders.ToList())
+                if (CheckCollision(Transform.X, nextY, myCollider, other))
                 {
-                    if (other == null || other == myCollider) continue;
-                    if (!other.GameObject?.IsActive ?? false) continue;
-
-                    if (CheckCollision(Transform.X, nextY, myCollider, other))
+                    float distance = Math.Abs(other.Top - (nextY + myCollider.Height));
+                    if (distance < minCollisionDistance)
                     {
-                        float distance = Math.Abs(other.Top - (nextY + myCollider.Height));
-                        if (distance < minCollisionDistance)
-                        {
-                            minCollisionDistance = distance;
-                            collidingWith = other;
-                        }
+                        minCollisionDistance = distance;
+                        collidingWith = other;
                     }
-                }
-
-                if (collidingWith != null)
-                {
-                    Transform.Y = collidingWith.Top - myCollider.Height;
-                    Velocity.Y = 0;
-                    grounded = true;
-                }
-
-                if (!grounded && Velocity.Y != 0)
-                {
-                    Transform.Y = nextY;
-                }
-
-                bool canMoveX = true;
-                foreach (var other in BoxCollider2D.AllColliders)
-                {
-                    if (other == myCollider) continue;
-
-                    if (CheckCollision(nextX, Transform.Y, myCollider, other))
-                    {
-                        canMoveX = false;
-                        Velocity.X = 0;
-                        break;
-                    }
-                }
-
-                if (canMoveX)
-                {
-                    Transform.X = nextX;
                 }
             }
-            else
+
+            if (collidingWith != null)
+            {
+                Transform.Y = collidingWith.Top - myCollider.Height;
+                Velocity.Y = 0;
+                grounded = true;
+            }
+
+            if (!grounded && Velocity.Y != 0)
             {
                 Transform.Y = nextY;
+            }
+
+            bool canMoveX = true;
+            foreach (var other in BoxCollider2D.AllColliders)
+            {
+                if (other == myCollider) continue;
+
+                if (CheckCollision(nextX, Transform.Y, myCollider, other))
+                {
+                    canMoveX = false;
+                    Velocity.X = 0;
+                    break;
+                }
+            }
+
+            if (canMoveX)
+            {
                 Transform.X = nextX;
             }
-            
         }
-
-        private bool CheckCollision(float x, float y, BoxCollider2D me, BoxCollider2D other)
+        else
         {
-            return x < other.Right &&
-                   x + me.Width > other.Left &&
-                   y < other.Bottom &&
-                   y + me.Height > other.Top;
+            Transform.Y = nextY;
+            Transform.X = nextX;
         }
+        
+    }
+
+    private bool CheckCollision(float x, float y, BoxCollider2D me, BoxCollider2D other)
+    {
+        return x < other.Right &&
+               x + me.Width > other.Left &&
+               y < other.Bottom &&
+               y + me.Height > other.Top;
     }
 }

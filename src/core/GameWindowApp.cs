@@ -1,189 +1,227 @@
-﻿using Silk.NET.Input;
+﻿using Silk.NET.Core;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using StbImageSharp;
 using System.Numerics;
-using nanjav.input;
+using System.Runtime.CompilerServices;
 
-namespace nanjav.core
+namespace nanjav.core;
+
+public class GameWindowApp : IDisposable
 {
-    public class GameWindowApp : IDisposable
+    private IWindow _window = null!;
+    private GL? _gl;
+    private Renderer _renderer = null!;
+    private Data _data = null!;
+
+    private static string _engineRootPath = null!;
+    private string currentFileDir;
+
+    public Keyboard Keyboard { get; private set; } = null!;
+    public Mouse Mouse { get; private set; } = null!;
+    public Renderer Renderer => _renderer;
+    public Data Data => _data;
+    public int Width => _window.Size.X;
+    public int Height => _window.Size.Y;
+    public double Time => _window.Time;
+    public bool IsRunning { get; private set; }
+
+    public event Action? OnLoad;
+    public event Action<double>? OnUpdate;
+    public event Action<double>? OnRender;
+    public event Action<int, int>? OnResize;
+    public event Action? OnClose;
+
+    public GameWindowApp(string title = "nanjav Game", int width = 800, int height = 600, bool vSync = true)
     {
-        private IWindow _window = null!;
-        private GL? _gl;
-        private Renderer _renderer = null!;
-        private Data _data = null!;
+        var options = WindowOptions.Default;
+        options.Size = new Vector2D<int>(width, height);
+        options.Title = title;
+        options.VSync = vSync;
+        options.API = new GraphicsAPI(ContextAPI.OpenGL, new APIVersion(3, 3));
 
-        public Keyboard Keyboard { get; private set; } = null!;
-        public Mouse Mouse { get; private set; } = null!;
-        public Renderer Renderer => _renderer;
-        public Data Data => _data;
-        public int Width => _window.Size.X;
-        public int Height => _window.Size.Y;
-        public double Time => _window.Time;
-        public bool IsRunning { get; private set; }
+        _window = Window.Create(options);
+        _renderer = new Renderer();
+        Keyboard = new nanjav.core.Keyboard();
+        Mouse = new nanjav.core.Mouse();
 
-        public event Action? OnLoad;
-        public event Action<double>? OnUpdate;
-        public event Action<double>? OnRender;
-        public event Action<int, int>? OnResize;
-        public event Action? OnClose;
+        _window.Load += OnWindowLoad;
+        _window.Update += OnUpdateFrame;
+        _window.Render += OnRenderFrame;
+        _window.Resize += OnWindowResize;
+        _window.Closing += OnWindowClose;
 
-        public GameWindowApp(string title = "nanjav Game", int width = 800, int height = 600, bool vSync = true)
+    }
+
+    public string GetSourceFolderPath([CallerFilePath] string fileName = "")
+    {
+        string? dir = Path.GetDirectoryName(fileName);
+
+        if (dir != null)
         {
-            var options = WindowOptions.Default;
-            options.Size = new Vector2D<int>(width, height);
-            options.Title = title;
-            options.VSync = vSync;
-            options.API = new GraphicsAPI(ContextAPI.OpenGL, new APIVersion(3, 3));
+            DirectoryInfo? root = Directory.GetParent(dir)?.Parent;
+            _engineRootPath = root?.FullName ?? "";
 
-            _window = Window.Create(options);
-            _renderer = new Renderer();
-            Keyboard = new nanjav.input.Keyboard();
-            Mouse = new nanjav.input.Mouse();
-
-            _window.Load += OnWindowLoad;
-            _window.Update += OnUpdateFrame;
-            _window.Render += OnRenderFrame;
-            _window.Resize += OnWindowResize;
-            _window.Closing += OnWindowClose;
+            this.currentFileDir = Path.Combine(_engineRootPath, "image", "ico.png");
         }
 
-        private void OnWindowLoad()
+        return _engineRootPath;
+    }
+
+    public void SetIcon(string IconPath)
+    {
+        string? finalPath = IconPath ?? currentFileDir;
+
+        if (string.IsNullOrEmpty(finalPath) || !File.Exists(finalPath))
         {
-            _gl = GL.GetApi(_window);
-            _data = new Data(_gl);
-            SetupInput();
-            _renderer.Load(_gl, Width, Height);
-            CenterWindow();
-            IsRunning = true;
-            OnLoad?.Invoke();
+            return;
         }
 
-        private void SetupInput()
-        {
-            var input = _window.CreateInput();
+        using var stream = File.OpenRead(finalPath);
+        var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+        var rawImage = new RawImage(image.Width, image.Height, image.Data);
 
-            if (input.Keyboards.Count > 0)
+        _window.SetWindowIcon(new ReadOnlySpan<RawImage>(rawImage));
+    }
+
+    private void OnWindowLoad()
+    {
+        _gl = GL.GetApi(_window);
+        _data = new Data(_gl);
+        SetupInput();
+        _renderer.Load(_gl, Width, Height);
+        CenterWindow();
+        IsRunning = true;
+        OnLoad?.Invoke();
+        GetSourceFolderPath();
+        SetIcon(null);
+    }
+
+    private void SetupInput()
+    {
+        var input = _window.CreateInput();
+
+        if (input.Keyboards.Count > 0)
+        {
+            var keyboard = input.Keyboards[0];
+            keyboard.KeyDown += (kb, key, scancode) =>
             {
-                var keyboard = input.Keyboards[0];
-                keyboard.KeyDown += (kb, key, scancode) =>
-                {
-                    var neoKey = (nanjav.input.Keys)(int)key;
-                    Keyboard.KeyDown(neoKey);
-                };
+                var neoKey = (nanjav.core.Keys)(int)key;
+                Keyboard.KeyDown(neoKey);
+            };
 
-                keyboard.KeyUp += (kb, key, scancode) =>
-                {
-                    var neoKey = (nanjav.input.Keys)(int)key;
-                    Keyboard.KeyUp(neoKey);
-                };
-            }
-
-            if (input.Mice.Count > 0)
+            keyboard.KeyUp += (kb, key, scancode) =>
             {
-                var mouse = input.Mice[0];
-                mouse.MouseDown += (m, button) =>
-                {
-                    var neoButton = (nanjav.input.MouseButton)(int)button;
-                    Mouse.ButtonDown(neoButton);
-                };
-                mouse.MouseUp += (m, button) =>
-                {
-                    var neoButton = (nanjav.input.MouseButton)(int)button;
-                    Mouse.ButtonUp(neoButton);
-                };
-                mouse.MouseMove += (m, position) =>
-                {
-                    Mouse.UpdatePosition(new Vector2(position.X, position.Y));
-                };
-                mouse.Scroll += (m, wheel) =>
-                {
-                    Mouse.UpdateScroll(wheel.Y);
-                };
-            }
+                var neoKey = (nanjav.core.Keys)(int)key;
+                Keyboard.KeyUp(neoKey);
+            };
         }
 
-        private void OnUpdateFrame(double deltaTime)
+        if (input.Mice.Count > 0)
         {
-            _data?.UpdateFPS(deltaTime);
-            Keyboard.Update();
-            Mouse.Update();
-
-            if (Keyboard.IsKeyPressed(Keys.Escape))
-                Close();
-
-            _renderer.Update(deltaTime);
-            OnUpdate?.Invoke(deltaTime);
-        }
-
-        private void OnRenderFrame(double deltaTime)
-        {
-            _renderer.Render(deltaTime);
-            OnRender?.Invoke(deltaTime);
-        }
-
-        private void OnWindowResize(Vector2D<int> newSize)
-        {
-            if (_gl is not null)
-                _gl.Viewport(0, 0, (uint)newSize.X, (uint)newSize.Y);
-            _renderer?.OnResize(newSize.X, newSize.Y);
-            OnResize?.Invoke(newSize.X, newSize.Y);
-        }
-
-        private void OnWindowClose()
-        {
-            IsRunning = false;
-            _renderer?.Cleanup();
-            OnClose?.Invoke();
-        }
-
-        public void CenterWindow()
-        {
-            var monitor = _window.Monitor;
-            if (monitor != null)
+            var mouse = input.Mice[0];
+            mouse.MouseDown += (m, button) =>
             {
-                var videoMode = monitor.VideoMode;
-                _window.Position = new Vector2D<int>(
-                    (videoMode.Resolution.Value.X - _window.Size.X) / 2,
-                    (videoMode.Resolution.Value.Y - _window.Size.Y) / 2
-                );
-            }
+                var neoButton = (nanjav.core.MouseButton)(int)button;
+                Mouse.ButtonDown(neoButton);
+            };
+            mouse.MouseUp += (m, button) =>
+            {
+                var neoButton = (nanjav.core.MouseButton)(int)button;
+                Mouse.ButtonUp(neoButton);
+            };
+            mouse.MouseMove += (m, position) =>
+            {
+                Mouse.UpdatePosition(new Vector2(position.X, position.Y));
+            };
+            mouse.Scroll += (m, wheel) =>
+            {
+                Mouse.UpdateScroll(wheel.Y);
+            };
         }
+    }
 
-        public void SetLightPosition(Vector3 position)
+    private void OnUpdateFrame(double deltaTime)
+    {
+        _data?.UpdateFPS(deltaTime);
+        Keyboard.Update();
+        Mouse.Update();
+
+        if (Keyboard.IsKeyPressed(Keys.Escape))
+            Close();
+
+        _renderer.Update(deltaTime);
+        OnUpdate?.Invoke(deltaTime);
+    }
+
+    private void OnRenderFrame(double deltaTime)
+    {
+        _renderer.Render(deltaTime);
+        OnRender?.Invoke(deltaTime);
+    }
+
+    private void OnWindowResize(Vector2D<int> newSize)
+    {
+        if (_gl is not null)
+            _gl.Viewport(0, 0, (uint)newSize.X, (uint)newSize.Y);
+        _renderer?.OnResize(newSize.X, newSize.Y);
+        OnResize?.Invoke(newSize.X, newSize.Y);
+    }
+
+    private void OnWindowClose()
+    {
+        IsRunning = false;
+        _renderer?.Cleanup();
+        OnClose?.Invoke();
+    }
+
+    public void CenterWindow()
+    {
+        var monitor = _window.Monitor;
+        if (monitor != null)
         {
-            _renderer.SetLightPosition(position);
+            var videoMode = monitor.VideoMode;
+            _window.Position = new Vector2D<int>(
+                (videoMode.Resolution.Value.X - _window.Size.X) / 2,
+                (videoMode.Resolution.Value.Y - _window.Size.Y) / 2
+            );
         }
+    }
 
-        public void SetTitle(string title) => _window.Title = title;
-        public void SetSize(int width, int height) => _window.Size = new Vector2D<int>(width, height);
+    public void SetLightPosition(Vector3 position)
+    {
+        _renderer.SetLightPosition(position);
+    }
 
-        public void ToggleFullscreen()
-        {
-            _window.WindowState = _window.WindowState == WindowState.Fullscreen
-                ? WindowState.Normal
-                : WindowState.Fullscreen;
-        }
+    public void SetTitle(string title) => _window.Title = title;
+    public void SetSize(int width, int height) => _window.Size = new Vector2D<int>(width, height);
 
-        public void Run() => _window.Run();
-        public void Close() => _window.Close();
+    public void ToggleFullscreen()
+    {
+        _window.WindowState = _window.WindowState == WindowState.Fullscreen
+            ? WindowState.Normal
+            : WindowState.Fullscreen;
+    }
 
-        public void Dispose()
-        {
-            _renderer?.Cleanup();
-            _window?.Dispose();
-            _gl?.Dispose();
-        }
+    public void Run() => _window.Run();
+    public void Close() => _window.Close();
 
-        public void AddGameObject(GameObject obj)
-        {
-            _renderer.AddRootObject(obj);
-        }
+    public void Dispose()
+    {
+        _renderer?.Cleanup();
+        _window?.Dispose();
+        _gl?.Dispose();
+    }
 
-        public void SetCamera(Camera2D camera)
-        {
-            _renderer.Camera = camera;
-        }
+    public void AddGameObject(GameObject obj)
+    {
+        _renderer.AddRootObject(obj);
+    }
+
+    public void SetCamera(Camera2D camera)
+    {
+        _renderer.Camera = camera;
     }
 }
