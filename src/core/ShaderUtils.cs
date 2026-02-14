@@ -38,7 +38,6 @@ internal static class ShaderUtils
         if (linkStatus == 0)
         {
             string log = gl.GetProgramInfoLog(program) ?? string.Empty;
-            // cleanup on failure
             if (vertexShader != 0) gl.DeleteShader(vertexShader);
             if (fragmentShader != 0) gl.DeleteShader(fragmentShader);
             if (program != 0) gl.DeleteProgram(program);

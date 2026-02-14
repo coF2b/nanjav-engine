@@ -1,5 +1,5 @@
 ﻿using Silk.NET.OpenGL;
-using System.Numerics;
+using StbImageSharp;
 
 namespace nanjav.core;
 
@@ -15,8 +15,8 @@ public class Renderer
     private float[] _projection = new float[16];
     private int _width;
     private int _height;
-    private Vector3 _lightPosition = new Vector3(500f, -500f, 100f);
 
+    private Dictionary<string, uint> _textureCache = new Dictionary<string, uint>();
     private List<GameObject> _rootObjects = new List<GameObject>();
 
     public Camera2D? Camera { get; set; }
@@ -33,44 +33,40 @@ public class Renderer
             layout(location = 0) in vec2 aPos;  
             layout(location = 1) in vec3 aColor;
             layout(location = 2) in vec3 aNormal;
+            layout(location = 3) in vec2 aTexCoord;
 
             out vec3 vColor;
-            out vec3 vNormal;
-            out vec3 vFragPos;
+            out vec2 TexCoord;
 
             uniform mat4 u_Projection;
-            uniform mat4 u_Model;
-            uniform mat4 u_View;
 
             void main()
             {
                 vColor = aColor;
-                vFragPos = vec3(u_Model * vec4(aPos, 0.0, 1.0));
-                gl_Position = u_Projection * vec4(aPos.xy, 0.0, 1.0);
-
-                vNormal = mat3(transpose(inverse(u_Model))) * aNormal;
+                TexCoord = aTexCoord;
+                gl_Position = u_Projection * vec4(aPos, 0.0, 1.0);
             }";
 
         const string fragmentSource = @"#version 330 core
             in vec3 vColor;
-            in vec3 vNormal;
-            in vec3 vFragPos;
+            in vec2 TexCoord;
 
             out vec4 FragColor;
 
-            uniform vec3 u_LightPos;
-            uniform vec3 u_LightColor;
-            uniform vec3 u_viewPos;
+            uniform sampler2D u_Texture;
+            uniform bool u_HasTexture;
 
             void main()
             {
-                vec3 norm = normalize(vNormal);
-                vec3 lightDir = normalize(u_LightPos - vFragPos);
-
-                float diff = max(dot(norm, lightDir), 0.0);
-                vec3 diffuse = diff * u_LightColor;
-
-                FragColor = vec4(vColor * (1 + diffuse), 1.0);
+                if (u_HasTexture)
+                {
+                    vec4 texColor = texture(u_Texture, TexCoord);
+                    FragColor = texColor * vec4(vColor, 1.0);
+                }
+                else
+                {
+                    FragColor = vec4(vColor, 1.0);
+                }
             }";
 
         _program = ShaderUtils.CreateProgram(_gl, vertexSource, fragmentSource, out _vertexShader, out _fragmentShader);
@@ -85,7 +81,7 @@ public class Renderer
 
         _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)0, (float[]?)null, BufferUsageARB.DynamicDraw);
 
-        uint stride = (uint)(8 * sizeof(float));
+        uint stride = (uint)(10 * sizeof(float));
 
         _gl.EnableVertexAttribArray(0);
         _gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, stride, (nint)0);
@@ -95,6 +91,9 @@ public class Renderer
 
         _gl.EnableVertexAttribArray(2);
         _gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, stride, (nint)(5 * sizeof(float)));
+
+        _gl.EnableVertexAttribArray(3);
+        _gl.VertexAttribPointer(3, 2, VertexAttribPointerType.Float, false, stride, (nint)(8 * sizeof(float)));
 
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         _gl.BindVertexArray(0);
@@ -106,20 +105,47 @@ public class Renderer
         _gl.Viewport(0, 0, (uint)_width, (uint)_height);
     }
 
-    public void SetLightPosition(Vector3 position)
+    public unsafe uint LoadTexture(string filePath)
     {
-        if (_gl is null) return;
+        if (_gl is null)
+            throw new InvalidOperationException("GL не ініціалізований");
 
-        _lightPosition = position;
-        _gl.UseProgram(_program);
+        if (_textureCache.ContainsKey(filePath))
+            return _textureCache[filePath];
 
-        int lightPosUniform = _gl.GetUniformLocation(_program, "u_LightPos");
-        _gl.Uniform3(lightPosUniform, position.X, position.Y, position.Z);
+        ImageResult image = ImageResult.FromStream(
+            File.OpenRead(filePath),
+            ColorComponents.RedGreenBlueAlpha
+        );
 
-        int lightColorUniform = _gl.GetUniformLocation(_program, "u_LightColor");
-        _gl.Uniform3(lightColorUniform, 1.0f, 1.0f, 1.0f);
+        uint textureHandle = _gl.GenTexture();
+        _gl.BindTexture(TextureTarget.Texture2D, textureHandle);
 
-        _gl.UseProgram(0);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+
+        fixed (byte* ptr = image.Data)
+        {
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                InternalFormat.Rgba,
+                (uint)image.Width,
+                (uint)image.Height,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                ptr
+            );
+        }
+
+        _gl.GenerateMipmap(TextureTarget.Texture2D);
+        _gl.BindTexture(TextureTarget.Texture2D, 0);
+
+        _textureCache[filePath] = textureHandle;
+        return textureHandle;
     }
 
     public uint GetShaderProgramId()
@@ -153,14 +179,50 @@ public class Renderer
 
         _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
-        var vertices = CollectVertices();
-
-        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), vertices, BufferUsageARB.DynamicDraw);
-
         _gl.UseProgram(_program);
         _gl.BindVertexArray(_vao);
-        _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)(vertices.Length / 8));
+
+        int texUniform = _gl.GetUniformLocation(_program, "u_Texture");
+        int hasTexUniform = _gl.GetUniformLocation(_program, "u_HasTexture");
+
+        var renderGroups = CollectRenderGroups();
+
+        foreach (var group in renderGroups)
+        {
+            if (!string.IsNullOrEmpty(group.TexturePath))
+            {
+                try
+                {
+                    uint textureId = LoadTexture(group.TexturePath);
+                    _gl.ActiveTexture(TextureUnit.Texture0);
+                    _gl.BindTexture(TextureTarget.Texture2D, textureId);
+
+                    if (texUniform >= 0) _gl.Uniform1(texUniform, 0);
+                    if (hasTexUniform >= 0) _gl.Uniform1(hasTexUniform, 1);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка при завантаженні текстури {group.TexturePath}: {ex.Message}");
+                    if (hasTexUniform >= 0) _gl.Uniform1(hasTexUniform, 0);
+                }
+            }
+            else
+            {
+                if (hasTexUniform >= 0) _gl.Uniform1(hasTexUniform, 0);
+            }
+
+            if (group.Vertices.Length > 0)
+            {
+                _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+                _gl.BufferData(BufferTargetARB.ArrayBuffer,
+                    (nuint)(group.Vertices.Length * sizeof(float)),
+                    group.Vertices,
+                    BufferUsageARB.DynamicDraw);
+
+                _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)(group.Vertices.Length / 10));
+            }
+        }
+
         _gl.BindVertexArray(0);
         _gl.UseProgram(0);
 
@@ -170,9 +232,16 @@ public class Renderer
         }
     }
 
-    private float[] CollectVertices()
+    private class RenderGroup
     {
-        var vertexList = new List<float>();
+        public string TexturePath { get; set; } = "";
+        public List<float> VertexList { get; set; } = new List<float>();
+        public float[] Vertices => VertexList.ToArray();
+    }
+
+    private List<RenderGroup> CollectRenderGroups()
+    {
+        var groups = new Dictionary<string, RenderGroup>();
 
         float cameraX = Camera?.Position.X ?? 0f;
         float cameraY = Camera?.Position.Y ?? 0f;
@@ -184,6 +253,15 @@ public class Renderer
             var sprite = obj.GetComponent<SpriteRenderer>();
             if (sprite != null)
             {
+                string textureKey = sprite.TexturePath ?? "";
+
+                if (!groups.ContainsKey(textureKey))
+                {
+                    groups[textureKey] = new RenderGroup { TexturePath = textureKey };
+                }
+
+                var group = groups[textureKey];
+
                 float x = obj.Transform.X - cameraX;
                 float y = obj.Transform.Y - cameraY;
                 float w = sprite.Width * obj.Transform.ScaleX;
@@ -194,13 +272,35 @@ public class Renderer
 
                 float nx = 0f, ny = 0f, nz = 1f;
 
-                vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
-                vertexList.Add(x + w); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
-                vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                group.VertexList.Add(x); group.VertexList.Add(y + h);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(0f); group.VertexList.Add(1f);
 
-                vertexList.Add(x); vertexList.Add(y + h); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
-                vertexList.Add(x + w); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
-                vertexList.Add(x); vertexList.Add(y); vertexList.Add(r); vertexList.Add(g); vertexList.Add(b); vertexList.Add(nx); vertexList.Add(ny); vertexList.Add(nz);
+                group.VertexList.Add(x + w); group.VertexList.Add(y + h);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(1f); group.VertexList.Add(1f);
+
+                group.VertexList.Add(x + w); group.VertexList.Add(y);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(1f); group.VertexList.Add(0f);
+
+                group.VertexList.Add(x); group.VertexList.Add(y + h);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(0f); group.VertexList.Add(1f);
+
+                group.VertexList.Add(x + w); group.VertexList.Add(y);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(1f); group.VertexList.Add(0f);
+
+                group.VertexList.Add(x); group.VertexList.Add(y);
+                group.VertexList.Add(r); group.VertexList.Add(g); group.VertexList.Add(b);
+                group.VertexList.Add(nx); group.VertexList.Add(ny); group.VertexList.Add(nz);
+                group.VertexList.Add(0f); group.VertexList.Add(0f);
             }
 
             foreach (var child in obj.GetChildren())
@@ -214,7 +314,7 @@ public class Renderer
             CollectFrom(root);
         }
 
-        return vertexList.ToArray();
+        return groups.Values.ToList();
     }
 
     public void OnResize(int width, int height)
@@ -230,6 +330,12 @@ public class Renderer
     public void Cleanup()
     {
         if (_gl is null) return;
+
+        foreach (var texture in _textureCache.Values)
+        {
+            _gl.DeleteTexture(texture);
+        }
+        _textureCache.Clear();
 
         ShaderUtils.DeleteProgram(_gl, ref _program, ref _vertexShader, ref _fragmentShader);
 

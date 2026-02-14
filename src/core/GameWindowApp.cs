@@ -111,7 +111,7 @@ public class GameWindowApp : IDisposable
                 var neoKey = (nanjav.core.Keys)(int)key;
                 Keyboard.KeyDown(neoKey);
             };
-
+            
             keyboard.KeyUp += (kb, key, scancode) =>
             {
                 var neoKey = (nanjav.core.Keys)(int)key;
@@ -188,11 +188,6 @@ public class GameWindowApp : IDisposable
                 (videoMode.Resolution.Value.Y - _window.Size.Y) / 2
             );
         }
-    }
-
-    public void SetLightPosition(Vector3 position)
-    {
-        _renderer.SetLightPosition(position);
     }
 
     public void SetTitle(string title) => _window.Title = title;
