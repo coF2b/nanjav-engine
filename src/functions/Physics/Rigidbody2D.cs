@@ -25,7 +25,7 @@ public class Rigidbody2D : Component
     {
         if (Transform == null) return;
 
-        Velocity.Y += GravityScale * Mass;
+        Velocity.Y += GravityScale * (float)deltaTime;
 
         float nextX = Transform.X + (Velocity.X * (float)deltaTime);
         float nextY = Transform.Y + (Velocity.Y * (float)deltaTime);

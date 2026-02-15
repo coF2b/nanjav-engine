@@ -1,5 +1,21 @@
 # **What's news?**
 
+## **0.1.4**
+### MOST IMPORTANT NEW FEATURES:
+1. LOADING THIRD-PARTY TEXTURES
+2. THE CAMERA OPERATES VIA A MATRIX
+3. IMPROVEMENTS IN PHYSICS
+### New features:
+- GameWindowApp automatically sets the icon from image/ico.png (GetSourceFolderPath and SetIcon methods).
+- The `Data` class now calculates the current FPS (UpdateFPS method), which is updated in the main loop.
+- Renderer now supports texture loading (LoadTexture method), caching, and grouping objects by texture to optimize state changes.
+- Fragment shader can combine color with texture.
+- In `Camera2D`, the order of matrix multiplication has been corrected: now `GetViewMatrix()` returns `Offset * Scale * (-Position)`, which correctly transforms world coordinates.
+- Added `ProjectSettings.cs` – a system for saving/loading settings in JSON (window, rendering, physics, game).
+- Rigidbody2D now selects the closest collider when colliding from below, rather than the first one it finds.
+- All classes are now located in `nanjav.core` (previously, some were in `nanjav.input`, `nanjav.audio`, `nanjav.physics2D`).
+- Comments have been added to most classes and methods.
+
 ## **0.1.3**
 ### MOST IMPORTANT NEW FEATURES:
 1. FULL AUDIO SYSTEM (HUGE STEP!)
