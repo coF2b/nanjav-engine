@@ -1,4 +1,4 @@
-﻿using nanjav.core;
+﻿// Manages physics behavior of the object: movement under gravity, jumping, and collision handling
 using System.Numerics;
 
 namespace nanjav.core;
@@ -25,7 +25,7 @@ public class Rigidbody2D : Component
     {
         if (Transform == null) return;
 
-        Velocity.Y += GravityScale * (float)deltaTime;
+        Velocity.Y += GravityScale * Mass;
 
         float nextX = Transform.X + (Velocity.X * (float)deltaTime);
         float nextY = Transform.Y + (Velocity.Y * (float)deltaTime);
@@ -57,7 +57,15 @@ public class Rigidbody2D : Component
 
             if (collidingWith != null)
             {
-                Transform.Y = collidingWith.Top - myCollider.Height;
+                if (Velocity.Y > 0)
+                {
+                    Transform.Y = collidingWith.Top - myCollider.Height;
+                }
+                else if (Velocity.Y < 0)
+                {
+                    Transform.Y = collidingWith.Bottom;
+                }
+
                 Velocity.Y = 0;
                 grounded = true;
             }
@@ -90,7 +98,7 @@ public class Rigidbody2D : Component
             Transform.Y = nextY;
             Transform.X = nextX;
         }
-        
+
     }
 
     private bool CheckCollision(float x, float y, BoxCollider2D me, BoxCollider2D other)

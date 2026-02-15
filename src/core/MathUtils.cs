@@ -1,4 +1,5 @@
-﻿namespace nanjav.core;
+﻿// Helper class with a function to create an orthographic projection matrix.
+namespace nanjav.core;
 
 internal static class MathUtils
 {

@@ -1,4 +1,5 @@
-﻿namespace nanjav.core;
+﻿// Handles keyboard state (current/previous), allowing checks for key presses, holds, and releases.
+namespace nanjav.core;
 
 public class Keyboard
 {

@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿// Manages project settings (window, rendering, physics, game) via a JSON file.
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Numerics;
 

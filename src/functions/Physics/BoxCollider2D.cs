@@ -1,5 +1,4 @@
-﻿using nanjav.core;
-
+﻿// A rectangular collider component; maintains a list of all colliders and checks 
 namespace nanjav.core;
 
 public class BoxCollider2D : Component

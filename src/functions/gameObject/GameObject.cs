@@ -1,5 +1,8 @@
-﻿namespace nanjav.core;
+﻿using Silk.NET.OpenGL;
+using System.Drawing;
 
+namespace nanjav.core;
+// The base class for game objects, containing transform, components, children, and methods to manage them.
 public class GameObject
 {
     public string Name { get; set; } = "GameObject";
@@ -102,7 +105,7 @@ public abstract class Component
     public virtual void Update(double deltaTime) { }
     public virtual void Render() { }
 }
-
+// A component for rendering a sprite(color, size, texture).
 public class SpriteRenderer : Component
 {
     public float Width { get; set; } = 100f;
@@ -149,7 +152,7 @@ public class SpriteRenderer : Component
         float screenY = (Transform.Y - camera.Position.Y) + camera.Offset.Y;
     }
 }
-
+// Stores an object's position, rotation, scale, and its parent-child transform relationships.
 public class Transform
 {
     public float X { get; set; }

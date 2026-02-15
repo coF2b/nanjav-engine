@@ -1,4 +1,5 @@
-﻿using Silk.NET.Core;
+﻿// The main window class, initializes Silk.NET, manages events, input, the renderer, and the game loop.
+using Silk.NET.Core;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -207,7 +208,6 @@ public class GameWindowApp : IDisposable
     {
         _renderer?.Cleanup();
         _window?.Dispose();
-        _gl?.Dispose();
     }
 
     public void AddGameObject(GameObject obj)

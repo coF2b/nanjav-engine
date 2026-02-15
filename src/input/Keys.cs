@@ -1,4 +1,5 @@
-﻿namespace nanjav.core;
+﻿// An enum listing all available keyboard keys (compatible with Silk.NET).
+namespace nanjav.core;
 
 public enum Keys
 {

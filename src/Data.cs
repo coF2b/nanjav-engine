@@ -1,8 +1,9 @@
-﻿using Silk.NET.OpenGL;
+﻿// Stores engine version, OS info, OpenGL context details, and calculates the current FPS.
+using Silk.NET.OpenGL;
 
 public class Data
 {
-    public string Version = "0.1.4 Alpha-4";
+    public string Version = "0.1.4";
     public string OSver = Environment.OSVersion.ToString();
     public string TimeNow = DateTime.Now.ToString();
 

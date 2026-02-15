@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿// Manages camera position, zoom, and offset; constructs the view matrix for rendering.
+using System.Numerics;
 
 namespace nanjav.core;
 
@@ -17,6 +18,8 @@ public class Camera2D
 
     public Matrix4x4 GetViewMatrix()
     {
-        return Matrix4x4.CreateTranslation(new Vector3(-Position, 0)) * Matrix4x4.CreateScale(Zoom) * Matrix4x4.CreateTranslation(new Vector3(Offset, 0));
+        return Matrix4x4.CreateTranslation(new Vector3(Offset, 0)) *
+               Matrix4x4.CreateScale(Zoom) *
+               Matrix4x4.CreateTranslation(new Vector3(-Position, 0));
     }
 }

@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿// Helper class for compiling shaders, creating, and deleting shader programs.
+using Silk.NET.OpenGL;
 
 namespace nanjav.core;
 

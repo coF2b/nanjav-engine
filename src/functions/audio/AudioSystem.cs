@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿// A system class for working with OpenAL: loading WAV files, creating sources, playing sounds, and listener positioning.
+using System.Numerics;
 using Silk.NET.OpenAL;
 
 namespace nanjav.core;

@@ -1,4 +1,5 @@
-﻿namespace nanjav.core;
+﻿// An enum for mouse buttons.
+namespace nanjav.core;
 
 public enum MouseButton
 {

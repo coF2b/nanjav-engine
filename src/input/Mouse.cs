@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿// Tracks mouse position, button states, movement delta, and scroll wheel input.
+using System.Numerics;
 
 namespace nanjav.core;
 

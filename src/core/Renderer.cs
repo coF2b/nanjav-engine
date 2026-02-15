@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿// Responsible for OpenGL initialization, loading shaders and textures, and rendering all GameObjects.
+using Silk.NET.OpenGL;
 using StbImageSharp;
 
 namespace nanjav.core;
@@ -39,12 +40,13 @@ public class Renderer
             out vec2 TexCoord;
 
             uniform mat4 u_Projection;
+            uniform mat4 u_View;
 
             void main()
             {
                 vColor = aColor;
                 TexCoord = aTexCoord;
-                gl_Position = u_Projection * vec4(aPos, 0.0, 1.0);
+                gl_Position = u_Projection * u_View * vec4(aPos, 0.0, 1.0);
             }";
 
         const string fragmentSource = @"#version 330 core
@@ -182,6 +184,13 @@ public class Renderer
         _gl.UseProgram(_program);
         _gl.BindVertexArray(_vao);
 
+        int viewUniform = _gl.GetUniformLocation(_program, "u_View");
+        if (viewUniform >= 0 && Camera != null)
+        {
+            var viewMatrix = Camera.GetViewMatrix();
+            _gl.UniformMatrix4(viewUniform, 1, false, ref viewMatrix.M11);
+        }
+
         int texUniform = _gl.GetUniformLocation(_program, "u_Texture");
         int hasTexUniform = _gl.GetUniformLocation(_program, "u_HasTexture");
 
@@ -262,8 +271,8 @@ public class Renderer
 
                 var group = groups[textureKey];
 
-                float x = obj.Transform.X - cameraX;
-                float y = obj.Transform.Y - cameraY;
+                float x = obj.Transform.X;
+                float y = obj.Transform.Y;
                 float w = sprite.Width * obj.Transform.ScaleX;
                 float h = sprite.Height * obj.Transform.ScaleY;
                 float r = sprite.Color.X;

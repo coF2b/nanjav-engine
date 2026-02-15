@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿// A component for playing sound (2D or 3D), controlling volume, looping, and 
+using System.Numerics;
 
 namespace nanjav.core;
 
